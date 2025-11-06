@@ -5,8 +5,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'OpenPAM',
-  description: 'OpenPAM Application',
+  title: 'OpenPAM - OTP Management',
+  description: 'Secure OTP Management Platform with Enterprise Features',
 }
 
 export default function RootLayout({

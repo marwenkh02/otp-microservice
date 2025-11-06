@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.orm import Session
 import pyotp
 import re
+import hashlib  # Add this import
 from .database import get_db
 from .models import User, UserSession
 
@@ -196,3 +197,13 @@ async def create_user_session(db: Session, user_id: int, user: User, request: Re
     db.refresh(session)
     
     return session_token
+
+# Add this function to get the correct digest algorithm
+def get_digest_algorithm(algorithm: str):
+    """Get the hashlib digest algorithm based on the algorithm name"""
+    algorithm_map = {
+        'sha1': hashlib.sha1,
+        'sha256': hashlib.sha256,
+        'sha512': hashlib.sha512
+    }
+    return algorithm_map.get(algorithm.lower(), hashlib.sha1)
