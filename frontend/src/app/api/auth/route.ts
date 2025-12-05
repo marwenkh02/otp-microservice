@@ -72,10 +72,10 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(responseData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('API route error:', error);
     
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
       return NextResponse.json(
         { error: 'Cannot connect to backend server. Please make sure it is running on port 8000.' },
         { status: 503 }
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }

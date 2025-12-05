@@ -60,8 +60,8 @@ export default function ValidateOTP() {
       if (data.otp_type === 'hotp') {
         setFormData(prev => ({ ...prev, counter: data.counter.toString() }));
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -75,7 +75,11 @@ export default function ValidateOTP() {
 
     try {
       const token = localStorage.getItem('token');
-      const payload: any = {
+      const payload: {
+        config_id: number;
+        otp_code: string;
+        counter?: number;
+      } = {
         config_id: parseInt(configId),
         otp_code: formData.otp_code
       };
@@ -101,8 +105,8 @@ export default function ValidateOTP() {
 
       const data: ValidationResult = await response.json();
       setValidationResult(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setValidating(false);
     }

@@ -65,7 +65,7 @@ export default function Signup() {
         if (response.status === 422 && data.detail) {
           // Format validation errors for display
           if (Array.isArray(data.detail)) {
-            const errorMessages = data.detail.map((error: any) => 
+            const errorMessages = data.detail.map((error: { msg?: string; loc?: unknown[]; type?: string }) => 
               `${error.loc && error.loc.length > 1 ? error.loc[1] : 'Field'}: ${error.msg}`
             );
             throw new Error(errorMessages.join('; '));
@@ -80,8 +80,8 @@ export default function Signup() {
       setTimeout(() => {
         router.push('/login');
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during signup');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during signup');
     } finally {
       setLoading(false);
     }

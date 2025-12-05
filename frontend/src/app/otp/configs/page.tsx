@@ -64,8 +64,8 @@ export default function OTPConfigs() {
 
       const data = await response.json();
       setConfigs(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -106,8 +106,8 @@ export default function OTPConfigs() {
         counter: 0,
         issuer: 'OpenPAM'
       });
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
 
@@ -132,8 +132,8 @@ export default function OTPConfigs() {
 
       setConfigs(prev => prev.filter(config => config.id !== configId));
       setMessage('OTP configuration deleted successfully!');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     }
   };
 

@@ -11,7 +11,7 @@ interface AuditLog {
   ip_address: string | null;
   timestamp: string;
   status: string;
-  details: any;
+  details: Record<string, unknown> | null;
 }
 
 export default function AuditLogs() {
@@ -54,8 +54,8 @@ export default function AuditLogs() {
 
       const data = await response.json();
       setAuditLogs(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

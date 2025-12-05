@@ -64,9 +64,9 @@ export default function GenerateOTP() {
       const data = await response.json();
       console.log('Config data received:', data);
       setConfig(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching config:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -145,7 +145,7 @@ export default function GenerateOTP() {
       if (data.remaining_seconds) {
         setCountdown(data.remaining_seconds);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Generate OTP error:', err);
       setError(err.message || 'Failed to generate OTP.');
     } finally {

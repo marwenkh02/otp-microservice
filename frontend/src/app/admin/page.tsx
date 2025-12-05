@@ -41,7 +41,7 @@ interface AuditLog {
   ip_address: string | null;
   timestamp: string;
   status: string;
-  details: any;
+  details: Record<string, unknown> | null;
 }
 
 export default function AdminDashboard() {
@@ -96,8 +96,8 @@ export default function AdminDashboard() {
         setAuditLogs(auditData);
       }
 
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
