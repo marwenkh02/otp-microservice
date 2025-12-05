@@ -37,7 +37,8 @@ export default function AuditLogs() {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/audit/logs?limit=100', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/audit/logs?limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

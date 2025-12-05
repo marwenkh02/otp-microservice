@@ -46,7 +46,8 @@ export default function OTPConfigs() {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/otp/configs/', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/otp/configs/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -77,7 +78,8 @@ export default function OTPConfigs() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/otp/configs/', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/otp/configs/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +118,8 @@ export default function OTPConfigs() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/otp/configs/${configId}`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/otp/configs/${configId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

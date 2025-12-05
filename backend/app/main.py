@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import logging
+import os
 from jose import JWTError, jwt
 import pyotp
 from typing import List
@@ -32,6 +33,7 @@ from .auth import (
 from .security import security_manager
 from .audit import audit_logger
 from .metrics import metrics_collector
+from .reset_db_endpoint import router as reset_router
 
 # Enhanced logging
 logging.basicConfig(
@@ -47,13 +49,13 @@ app = FastAPI(
 )
 
 # Enhanced CORS configuration
+# Get CORS origins from environment variable or use defaults
+cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+cors_origins = [origin.strip() for origin in cors_origins_str.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -111,6 +113,10 @@ rate_limiter = RateLimiter()
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
+# Include reset database router (admin endpoints)
+from .reset_db_endpoint import router as reset_router
+app.include_router(reset_router)
 
 @app.get("/")
 async def root():

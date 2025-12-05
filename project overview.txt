@@ -1,0 +1,715 @@
+================================================================================
+                    OTP GENERATOR MICROSERVICE - PROJECT OVERVIEW
+================================================================================
+
+PROJECT DESCRIPTION
+================================================================================
+This is a comprehensive One-Time Password (OTP) Generator Microservice that 
+provides secure TOTP (Time-based OTP) and HOTP (HMAC-based OTP) generation and 
+validation capabilities. The system includes user authentication, multi-factor 
+authentication (MFA), audit logging, metrics collection, and enhanced security 
+features.
+
+Version: 2.1.0
+Status: Production-ready with enhanced security features
+
+================================================================================
+TECHNOLOGY STACK
+================================================================================
+
+BACKEND STACK:
+--------------
+- Framework: FastAPI 0.68.0 (Python web framework)
+- Runtime: Python 3.13
+- ASGI Server: Uvicorn 0.15.0
+- Database ORM: SQLAlchemy 1.4
+- Database: PostgreSQL 15 (via psycopg2-binary 2.9)
+- Database Migrations: Alembic 1.7
+- OTP Library: PyOTP 2.8.0
+- Authentication: 
+  * python-jose[cryptography] 3.3.0 (JWT tokens)
+  * passlib[bcrypt] 1.7.4 (Password hashing)
+- Encryption: cryptography 3.4 (Fernet symmetric encryption)
+- Environment Management: python-dotenv 0.19
+- HTTP Client: python-multipart 0.0.5
+
+FRONTEND STACK:
+---------------
+- Framework: Next.js 15.5.3 (React framework)
+- UI Library: React 19.1.0
+- Language: TypeScript 5
+- Styling: Tailwind CSS 4
+- Build Tool: Next.js built-in (Webpack/Turbopack)
+- Linting: ESLint 9 with Next.js config
+
+INFRASTRUCTURE:
+----------------
+- Containerization: Docker & Docker Compose
+- Database: PostgreSQL 15
+- Development: Hot-reload enabled for both frontend and backend
+
+================================================================================
+PROJECT STRUCTURE
+================================================================================
+
+OTP_project/
+│
+├── backend/                          # Python FastAPI backend
+│   ├── app/                          # Main application package
+│   │   ├── __init__.py              # Package initialization
+│   │   ├── main.py                  # FastAPI app and all API endpoints
+│   │   ├── models.py                # SQLAlchemy database models
+│   │   ├── schemas.py               # Pydantic request/response schemas
+│   │   ├── database.py              # Database connection and session management
+│   │   ├── auth.py                  # Authentication and authorization logic
+│   │   ├── security.py              # Encryption/decryption for OTP secrets
+│   │   ├── audit.py                 # Audit logging functionality
+│   │   ├── metrics.py               # Metrics collection and analytics
+│   │   └── init_db.py               # Database initialization
+│   ├── alembic/                     # Database migration tool
+│   │   ├── env.py                   # Alembic environment configuration
+│   │   ├── versions/                # Migration scripts
+│   │   └── script.py.mako           # Migration template
+│   ├── alembic.ini                  # Alembic configuration file
+│   ├── requirements.txt             # Python dependencies
+│   ├── Dockerfile                   # Backend container definition
+│   └── venv/                        # Python virtual environment
+│
+├── frontend/                         # Next.js frontend
+│   ├── src/
+│   │   └── app/                     # Next.js App Router
+│   │       ├── layout.tsx           # Root layout component
+│   │       ├── page.tsx              # Home page
+│   │       ├── globals.css           # Global styles
+│   │       ├── login/                # Login page
+│   │       │   └── page.tsx
+│   │       ├── signup/               # User registration page
+│   │       │   └── page.tsx
+│   │       ├── dashboard/            # User dashboard
+│   │       │   └── page.tsx
+│   │       ├── admin/                # Admin panel (admin only)
+│   │       │   └── page.tsx
+│   │       ├── audit/                # Audit logs viewer (admin only)
+│   │       │   └── page.tsx
+│   │       ├── otp/                  # OTP management pages
+│   │       │   ├── configs/          # OTP configuration management
+│   │       │   │   └── page.tsx
+│   │       │   ├── generate/         # OTP generation
+│   │       │   │   └── [id]/         # Dynamic route for config ID
+│   │       │   │       └── page.tsx
+│   │       │   └── validate/         # OTP validation
+│   │       │       └── [id]/         # Dynamic route for config ID
+│   │       │           └── page.tsx
+│   │       └── api/                  # Next.js API routes
+│   │           └── auth/             # Authentication proxy
+│   │               └── route.ts
+│   ├── public/                       # Static assets
+│   ├── package.json                  # Node.js dependencies
+│   ├── tsconfig.json                 # TypeScript configuration
+│   ├── next.config.ts                # Next.js configuration
+│   ├── eslint.config.mjs             # ESLint configuration
+│   ├── postcss.config.mjs            # PostCSS configuration
+│   ├── Dockerfile                    # Frontend container definition
+│   └── README.md                     # Frontend documentation
+│
+├── docker-compose.yml                # Multi-container orchestration
+├── project_structure.txt             # Existing project structure file
+└── test.db                          # SQLite database (development fallback)
+
+================================================================================
+DATABASE MODELS
+================================================================================
+
+1. USER TABLE (users)
+   - id: Primary key
+   - username: Unique username
+   - email: Unique email address
+   - hashed_password: Bcrypt hashed password
+   - is_active: Account status
+   - is_admin: Admin privileges flag
+   - mfa_enabled: Multi-factor authentication status
+   - mfa_secret: TOTP secret for MFA
+   - last_login: Last login timestamp
+   - failed_login_attempts: Failed login counter
+   - account_locked_until: Account lockout expiration
+   - department: User department
+   - job_title: User job title
+   - access_level: Access level (0-10)
+   - session_timeout: Session timeout in minutes
+   - must_change_password: Password change required flag
+
+2. USER_SESSION TABLE (user_sessions)
+   - id: Primary key
+   - user_id: Foreign key to users
+   - session_token: Unique session token
+   - created_at: Session creation timestamp
+   - expires_at: Session expiration timestamp
+   - ip_address: Client IP address
+   - user_agent: Client user agent string
+   - is_revoked: Session revocation status
+
+3. OTP_CONFIG TABLE (otp_configs)
+   - id: Primary key
+   - user_id: Foreign key to users
+   - name: Configuration name
+   - otp_type: 'totp' or 'hotp'
+   - algorithm: 'sha1', 'sha256', or 'sha512'
+   - digits: OTP length (6-8)
+   - interval: Time interval for TOTP (seconds)
+   - counter: Counter value for HOTP
+   - issuer: Issuer name
+   - secret_key: Encrypted OTP secret (Fernet encryption)
+   - is_active: Configuration status
+   - created_at: Creation timestamp
+   - updated_at: Last update timestamp
+
+4. OTP_EVENT TABLE (otp_events)
+   - id: Primary key
+   - user_id: Foreign key to users
+   - config_id: Foreign key to otp_configs
+   - event_type: 'generate', 'validate_success', 'validate_failure'
+   - otp_code: Generated/validated OTP code
+   - is_success: Success status
+   - ip_address: Client IP address
+   - user_agent: Client user agent string
+   - timestamp: Event timestamp
+
+5. AUDIT_LOG TABLE (audit_logs)
+   - id: Primary key
+   - user_id: Foreign key to users (nullable)
+   - action: Action type (login, otp_generate, config_create, etc.)
+   - resource: Resource type (user, otp_config, system)
+   - resource_id: Resource identifier
+   - ip_address: Client IP address
+   - user_agent: Client user agent string
+   - timestamp: Event timestamp
+   - status: 'success' or 'failure'
+   - details: JSON field for additional context
+
+================================================================================
+API ENDPOINTS DOCUMENTATION
+================================================================================
+
+BASE URL: http://localhost:8000
+API VERSION: 2.1.0
+
+AUTHENTICATION:
+---------------
+All protected endpoints require JWT Bearer token in Authorization header:
+  Authorization: Bearer <access_token>
+
+1. GET /
+   Description: Root endpoint - API information
+   Authentication: None
+   Response: API status, version, and features
+
+2. GET /health
+   Description: Health check endpoint
+   Authentication: None
+   Response: Service health status
+
+USER MANAGEMENT:
+---------------
+3. POST /users/
+   Description: Create new user account
+   Authentication: None (public registration)
+   Rate Limit: 3 requests per hour per IP
+   Request Body:
+     - username: string (3-50 chars)
+     - email: EmailStr
+     - password: string (min 12 chars, must include uppercase, lowercase, digit, special char)
+     - department: string (optional)
+     - job_title: string (optional)
+   Response: UserResponse (user details without password)
+   Audit: Logs user creation
+
+4. GET /users/
+   Description: Get all users (admin only)
+   Authentication: Required (admin)
+   Response: List[UserResponse]
+
+5. GET /users/me/
+   Description: Get current user profile
+   Authentication: Required
+   Response: UserResponse
+
+AUTHENTICATION ENDPOINTS:
+-------------------------
+6. POST /token
+   Description: User login and token generation
+   Authentication: None
+   Rate Limit: 5 requests per 5 minutes per username
+   Request Body:
+     - username: string
+     - password: string
+     - mfa_code: string (optional, required if MFA enabled)
+   Response: Token object
+     - access_token: JWT access token (30 min expiry)
+     - refresh_token: JWT refresh token (7 days expiry)
+     - token_type: "bearer"
+     - mfa_required: boolean
+   Audit: Logs login success/failure
+   Features:
+     - Account lockout after 5 failed attempts (15 min lockout)
+     - MFA support
+     - Session creation
+
+OTP CONFIGURATION MANAGEMENT:
+-----------------------------
+7. POST /otp/configs/
+   Description: Create new OTP configuration
+   Authentication: Required
+   Rate Limit: 10 requests per hour per user
+   Request Body (OTPConfigCreate):
+     - name: string (configuration name)
+     - otp_type: "totp" | "hotp"
+     - algorithm: "sha1" | "sha256" | "sha512" (default: sha1)
+     - digits: int (6-8, default: 6)
+     - interval: int (10-300 seconds, default: 30, TOTP only)
+     - counter: int (>=0, default: 0, HOTP only)
+     - issuer: string (issuer name)
+   Response: OTPConfigResponse
+   Security: Secret key is encrypted before storage
+   Audit: Logs configuration creation
+
+8. GET /otp/configs/
+   Description: Get all OTP configurations for current user
+   Authentication: Required
+   Response: List[OTPConfigResponse]
+
+9. GET /otp/configs/{config_id}
+   Description: Get specific OTP configuration
+   Authentication: Required
+   Response: OTPConfigResponse
+   Validation: Ensures config belongs to current user
+
+10. DELETE /otp/configs/{config_id}
+    Description: Delete OTP configuration
+    Authentication: Required
+    Response: Success message
+    Audit: Logs configuration deletion
+
+OTP GENERATION & VALIDATION:
+----------------------------
+11. POST /otp/generate
+    Description: Generate OTP code for a configuration
+    Authentication: Required
+    Rate Limit: 30 requests per minute per user
+    Request Body (OTPGenerateRequest):
+      - config_id: int
+      - counter_increment: boolean (default: false, HOTP only)
+    Response (OTPGenerateResponse):
+      - otp_code: string (generated OTP)
+      - config_id: int
+      - remaining_seconds: int (TOTP only, time until next code)
+      - next_counter: int (HOTP only, if counter_increment=true)
+      - generated_at: datetime
+    Security: Decrypts secret key before generation
+    Audit: Logs OTP generation event
+    Features:
+      - Supports TOTP (time-based) and HOTP (counter-based)
+      - Multiple hash algorithms (SHA1, SHA256, SHA512)
+      - Configurable digits (6-8)
+
+12. POST /otp/validate
+    Description: Validate OTP code
+    Authentication: Required
+    Rate Limit: 20 requests per minute per user
+    Request Body (OTPValidateRequest):
+      - config_id: int
+      - otp_code: string
+      - counter: int (optional, for HOTP)
+    Response (OTPValidateResponse):
+      - is_valid: boolean
+      - config_id: int
+      - message: string
+    Security: Decrypts secret key before validation
+    Audit: Logs validation success/failure
+    Features:
+      - TOTP: Validates with 1-time-window tolerance
+      - HOTP: Validates against specified or current counter
+      - Auto-increments HOTP counter on successful validation
+
+BULK OPERATIONS:
+----------------
+13. POST /otp/bulk/generate
+    Description: Generate OTPs for multiple configurations
+    Authentication: Required
+    Request Body: List[int] (config_ids)
+    Response: Object with results array
+      - results: Array of {config_id, success, otp_code/error}
+    Use Case: Generate multiple OTPs at once
+
+STATISTICS & METRICS:
+---------------------
+14. GET /otp/stats
+    Description: Get OTP usage statistics for current user
+    Authentication: Required
+    Response (OTPStatsResponse):
+      - total_configs: int
+      - active_configs: int
+      - total_generations: int
+      - total_validations: int
+      - successful_validations: int
+
+15. GET /otp/stats/enhanced
+    Description: Enhanced statistics with time-based analytics
+    Authentication: Required
+    Response: Extended stats including:
+      - All basic stats
+      - recent_generations: int (last 7 days)
+      - recent_validations: int (last 7 days)
+      - recent_success_rate: float (percentage)
+      - analysis_period: "7 days"
+
+16. GET /otp/events/recent
+    Description: Get recent OTP events for current user
+    Authentication: Required
+    Query Parameters:
+      - limit: int (1-100, default: 10)
+    Response: List of recent OTP events with details
+
+17. GET /user/metrics
+    Description: Get user-specific metrics
+    Authentication: Required
+    Response: User metrics including configurations and OTP usage
+
+18. GET /system/metrics
+    Description: Get comprehensive system metrics (admin only)
+    Authentication: Required (admin)
+    Response: System-wide metrics including:
+      - users: {total, active, active_today}
+      - configurations: {total, active, by_type}
+      - otp_usage: {total_generations, total_validations, success_rate}
+      - recent_activity_24h: {logins, otp_generations}
+      - security: {mfa_enabled_users, locked_accounts}
+
+AUDIT & MONITORING:
+-------------------
+19. GET /audit/logs
+    Description: Get audit logs (admin only)
+    Authentication: Required (admin)
+    Query Parameters:
+      - skip: int (default: 0, pagination offset)
+      - limit: int (default: 100, pagination limit)
+    Response: List of audit log entries
+
+20. GET /audit/timeline
+    Description: Get audit timeline (admin only)
+    Authentication: Required (admin)
+    Query Parameters:
+      - hours: int (default: 24, time window)
+    Response: Timeline of audit events
+
+MULTI-FACTOR AUTHENTICATION (MFA):
+-----------------------------------
+21. POST /users/me/mfa/enable
+    Description: Initiate MFA setup (generate secret and URI)
+    Authentication: Required
+    Response (MFAResponse):
+      - mfa_uri: string (for QR code generation)
+      - mfa_secret: string (backup secret)
+    Note: MFA is not enabled until verified
+
+22. POST /users/me/mfa/verify
+    Description: Verify and enable MFA
+    Authentication: Required
+    Request Body (MFAEnableRequest):
+      - mfa_code: string (from authenticator app)
+    Response: Success message
+    Audit: Logs MFA enablement
+
+23. POST /users/me/mfa/disable
+    Description: Disable MFA for current user
+    Authentication: Required
+    Response: Success message
+    Audit: Logs MFA disablement
+
+PASSWORD MANAGEMENT:
+-------------------
+24. POST /users/me/change-password
+    Description: Change user password
+    Authentication: Required
+    Request Body (PasswordChangeRequest):
+      - current_password: string
+      - new_password: string (min 12 chars, complexity requirements)
+    Response: Success message
+    Audit: Logs password change
+    Security: Validates current password before change
+
+================================================================================
+SECURITY FEATURES
+================================================================================
+
+1. PASSWORD SECURITY:
+   - Minimum 12 characters
+   - Requires uppercase, lowercase, digit, and special character
+   - Bcrypt hashing with salt
+   - Password complexity validation
+
+2. AUTHENTICATION:
+   - JWT tokens (access + refresh)
+   - Access token: 30 minutes expiry
+   - Refresh token: 7 days expiry
+   - Account lockout after 5 failed attempts (15 minutes)
+   - Session management with database tracking
+
+3. MULTI-FACTOR AUTHENTICATION (MFA):
+   - TOTP-based MFA using PyOTP
+   - QR code generation for authenticator apps
+   - Optional MFA for login
+
+4. ENCRYPTION:
+   - OTP secrets encrypted using Fernet (symmetric encryption)
+   - Encryption key from environment variable or auto-generated
+   - Secrets decrypted only when needed for OTP operations
+
+5. RATE LIMITING:
+   - In-memory rate limiting with automatic cleanup
+   - Different limits for different endpoints:
+     * Registration: 3/hour per IP
+     * Login: 5/5min per username
+     * OTP generation: 30/minute per user
+     * OTP validation: 20/minute per user
+     * Config creation: 10/hour per user
+
+6. AUDIT LOGGING:
+   - Comprehensive audit trail for all security-sensitive operations
+   - Tracks: logins, OTP operations, config changes, user management
+   - Records: IP address, user agent, timestamp, status
+   - JSON details field for additional context
+
+7. AUTHORIZATION:
+   - Role-based access control (admin vs regular user)
+   - User-specific resource access (users can only access their own configs)
+   - Token-based authentication for all protected endpoints
+
+8. INPUT VALIDATION:
+   - Pydantic schemas for request validation
+   - Email validation
+   - Password complexity checks
+   - OTP code format validation
+
+================================================================================
+FRONTEND PAGES & ROUTES
+================================================================================
+
+1. / (Home Page)
+   - Landing page or redirect to dashboard
+
+2. /login
+   - User login form
+   - Handles MFA if enabled
+   - Redirects to dashboard on success
+
+3. /signup
+   - User registration form
+   - Password complexity requirements displayed
+   - Redirects to login on success
+
+4. /dashboard
+   - User dashboard (protected)
+   - Overview of user's OTP configurations
+   - Quick access to generate/validate OTPs
+   - User profile information
+
+5. /admin
+   - Admin panel (admin only)
+   - System metrics and statistics
+   - User management interface
+
+6. /audit
+   - Audit logs viewer (admin only)
+   - Filterable audit trail
+   - Timeline view
+
+7. /otp/configs
+   - OTP configuration management
+   - Create, view, delete configurations
+   - Configure TOTP/HOTP settings
+
+8. /otp/generate/[id]
+   - Generate OTP for specific configuration
+   - Shows OTP code and remaining time (TOTP)
+   - Counter information (HOTP)
+
+9. /otp/validate/[id]
+   - Validate OTP code
+   - Input form for OTP code
+   - Validation result display
+
+FRONTEND API ROUTE:
+-------------------
+/api/auth (POST)
+   - Proxy route for backend authentication
+   - Actions: 'login', 'signup', 'getUser'
+   - Handles token management
+   - Error handling and response formatting
+
+================================================================================
+DEPLOYMENT & INFRASTRUCTURE
+================================================================================
+
+DOCKER COMPOSE SETUP:
+---------------------
+Services:
+1. backend (FastAPI)
+   - Port: 8000
+   - Hot-reload enabled
+   - Depends on: db
+
+2. frontend (Next.js)
+   - Port: 3000
+   - Hot-reload enabled
+   - Depends on: backend
+
+3. db (PostgreSQL)
+   - Port: 5432
+   - Database: openpam
+   - User: openpam
+   - Password: openpam123
+   - Persistent volume: postgres_data
+
+ENVIRONMENT VARIABLES:
+----------------------
+Backend:
+- DATABASE_URL: PostgreSQL connection string
+- ENCRYPTION_KEY: Fernet encryption key (optional, auto-generated if missing)
+- ENVIRONMENT: development/production
+
+Frontend:
+- BACKEND_URL: Backend API URL (default: http://localhost:8000)
+- NODE_ENV: development/production
+
+DATABASE MIGRATIONS:
+--------------------
+- Alembic for database schema versioning
+- Migration files in backend/alembic/versions/
+- Run migrations: alembic upgrade head
+
+================================================================================
+KEY FEATURES SUMMARY
+================================================================================
+
+✓ TOTP (Time-based OTP) generation and validation
+✓ HOTP (HMAC-based OTP) generation and validation
+✓ Multiple hash algorithms (SHA1, SHA256, SHA512)
+✓ Configurable OTP length (6-8 digits)
+✓ User authentication with JWT tokens
+✓ Multi-factor authentication (MFA)
+✓ OTP secret encryption at rest
+✓ Comprehensive audit logging
+✓ System and user metrics
+✓ Rate limiting on all endpoints
+✓ Account lockout protection
+✓ Session management
+✓ Admin panel for system monitoring
+✓ RESTful API design
+✓ Modern React frontend with Next.js
+✓ Docker containerization
+✓ PostgreSQL database with migrations
+✓ Password complexity requirements
+✓ Role-based access control
+
+================================================================================
+USAGE EXAMPLES
+================================================================================
+
+1. USER REGISTRATION:
+   POST /users/
+   {
+     "username": "john_doe",
+     "email": "john@example.com",
+     "password": "SecurePass123!",
+     "department": "IT",
+     "job_title": "Developer"
+   }
+
+2. LOGIN:
+   POST /token
+   {
+     "username": "john_doe",
+     "password": "SecurePass123!",
+     "mfa_code": "123456"  // if MFA enabled
+   }
+
+3. CREATE OTP CONFIG:
+   POST /otp/configs/
+   Authorization: Bearer <token>
+   {
+     "name": "GitHub 2FA",
+     "otp_type": "totp",
+     "algorithm": "sha1",
+     "digits": 6,
+     "interval": 30,
+     "issuer": "GitHub"
+   }
+
+4. GENERATE OTP:
+   POST /otp/generate
+   Authorization: Bearer <token>
+   {
+     "config_id": 1,
+     "counter_increment": false
+   }
+
+5. VALIDATE OTP:
+   POST /otp/validate
+   Authorization: Bearer <token>
+   {
+     "config_id": 1,
+     "otp_code": "123456"
+   }
+
+================================================================================
+DEVELOPMENT WORKFLOW
+================================================================================
+
+1. Start Services:
+   docker-compose up
+
+2. Access Services:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - API Docs: http://localhost:8000/docs (FastAPI auto-generated)
+   - Database: localhost:5432
+
+3. Database Migrations:
+   cd backend
+   alembic upgrade head
+
+4. Create Admin User:
+   - Register via /signup
+   - Manually set is_admin=True in database
+   - Or use init_db.py script
+
+================================================================================
+NOTES & BEST PRACTICES
+================================================================================
+
+1. SECURITY:
+   - Change SECRET_KEY in production
+   - Set ENCRYPTION_KEY environment variable
+   - Use strong database passwords
+   - Enable HTTPS in production
+   - Regularly rotate encryption keys
+
+2. PERFORMANCE:
+   - Rate limiting prevents abuse
+   - Database indexes on frequently queried fields
+   - Connection pooling via SQLAlchemy
+
+3. MONITORING:
+   - Check /health endpoint for service status
+   - Monitor /system/metrics for system health
+   - Review audit logs regularly
+
+4. SCALABILITY:
+   - Stateless API design (JWT tokens)
+   - Database can be scaled independently
+   - Frontend can be deployed to CDN
+
+================================================================================
+END OF PROJECT OVERVIEW
+================================================================================
+

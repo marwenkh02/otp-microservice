@@ -64,8 +64,10 @@ export default function AdminDashboard() {
         return;
       }
 
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      
       // Fetch system metrics
-      const metricsResponse = await fetch('http://localhost:8000/system/metrics', {
+      const metricsResponse = await fetch(`${backendUrl}/system/metrics`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -83,7 +85,7 @@ export default function AdminDashboard() {
       setMetrics(metricsData);
 
       // Fetch audit logs
-      const auditResponse = await fetch('http://localhost:8000/audit/logs?limit=50', {
+      const auditResponse = await fetch(`${backendUrl}/audit/logs?limit=50`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

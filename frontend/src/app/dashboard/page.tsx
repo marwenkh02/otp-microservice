@@ -77,8 +77,10 @@ export default function Dashboard() {
         return;
       }
 
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      
       // Fetch current user
-      const userResponse = await fetch('http://localhost:8000/users/me/', {
+      const userResponse = await fetch(`${backendUrl}/users/me/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -90,7 +92,7 @@ export default function Dashboard() {
       }
 
       // Fetch OTP configs
-      const configsResponse = await fetch('http://localhost:8000/otp/configs/', {
+      const configsResponse = await fetch(`${backendUrl}/otp/configs/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -102,7 +104,7 @@ export default function Dashboard() {
       }
 
       // Fetch OTP stats
-      const statsResponse = await fetch('http://localhost:8000/otp/stats', {
+      const statsResponse = await fetch(`${backendUrl}/otp/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -114,7 +116,7 @@ export default function Dashboard() {
       }
 
       // Fetch user metrics
-      const metricsResponse = await fetch('http://localhost:8000/user/metrics', {
+      const metricsResponse = await fetch(`${backendUrl}/user/metrics`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

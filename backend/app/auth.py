@@ -7,12 +7,13 @@ from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.orm import Session
 import pyotp
 import re
-import hashlib  # Add this import
+import hashlib
+import os
 from .database import get_db
 from .models import User, UserSession
 
-# Security configurations - these should come from environment variables
-SECRET_KEY = "your-secret-key-change-in-production"
+# Security configurations - load from environment variables
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7

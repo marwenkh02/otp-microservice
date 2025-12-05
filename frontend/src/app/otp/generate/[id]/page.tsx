@@ -45,7 +45,8 @@ export default function GenerateOTP() {
 
       console.log(`Fetching config for ID: ${configId}`);
 
-      const response = await fetch(`http://localhost:8000/otp/configs/${configId}`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/otp/configs/${configId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -111,7 +112,8 @@ export default function GenerateOTP() {
         return;
       }
 
-      const response = await fetch('http://localhost:8000/otp/generate', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/otp/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
