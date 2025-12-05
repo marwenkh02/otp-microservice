@@ -245,7 +245,7 @@ export default function AuditLogs() {
                           </div>
                           {log.details && (
                             <div className="text-sm text-gray-500">
-                              {log.details.username || log.details.name || ''}
+                              {String(log.details.username || log.details.name || '')}
                             </div>
                           )}
                         </div>

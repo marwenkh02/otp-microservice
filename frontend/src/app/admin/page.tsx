@@ -342,7 +342,7 @@ export default function AdminDashboard() {
                             </div>
                             {log.details && (
                               <div className="text-sm text-gray-500">
-                                {log.details.username || log.details.name || ''}
+                                {(log.details.username as string) || (log.details.name as string) || ''}
                               </div>
                             )}
                           </div>

@@ -1,5 +1,5 @@
-from app.database import SessionLocal, engine
-from app.models import Base
+from backend.app.database import SessionLocal, engine
+from backend.app.models import Base
 
 def init_db():
     """Initialize the database by creating all tables"""

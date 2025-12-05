@@ -147,7 +147,7 @@ export default function GenerateOTP() {
       }
     } catch (err: unknown) {
       console.error('Generate OTP error:', err);
-      setError(err.message || 'Failed to generate OTP.');
+      setError(err instanceof Error ? err.message : 'Failed to generate OTP.');
     } finally {
       setGenerating(false);
     }

@@ -13,7 +13,7 @@ import hashlib
 import threading
 from collections import defaultdict
 
-from .database import SessionLocal, engine, get_db
+from .database import get_db, SessionLocal, engine, Base
 from .models import User, Base, OTPConfig, OTPEvent, AuditLog
 from .schemas import (
     UserCreate, UserResponse, Token, LoginRequest, 
@@ -35,12 +35,15 @@ from .audit import audit_logger
 from .metrics import metrics_collector
 from .reset_db_endpoint import router as reset_router
 
-# Enhanced logging
+# Configure detailed logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Enhanced logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="OTP Generator Microservice", 
@@ -139,48 +142,88 @@ async def health_check():
 # Enhanced User Management with Audit Logging
 @app.post("/users/", response_model=UserResponse)
 def create_user(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
-    # Rate limiting for user registration
-    if rate_limiter.is_rate_limited(f"registration_{request.client.host}", max_requests=3, window=3600):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many registration attempts. Please try again later."
+    """Create a new user with detailed logging"""
+    
+    logger.debug("=" * 60)
+    logger.debug("CREATE USER ENDPOINT - START")
+    logger.debug(f"Username: {user_data.username}")
+    logger.debug(f"Email: {user_data.email}")
+    logger.debug("=" * 60)
+    
+    try:
+        # Check if user already exists
+        logger.debug("Checking for existing user...")
+        existing_user = db.query(User).filter(
+            (User.username == user_data.username) | (User.email == user_data.email)
+        ).first()
+        
+        if existing_user:
+            logger.warning(f"User already exists: {user_data.username}")
+            raise HTTPException(
+                status_code=400,
+                detail="Username or email already exists"
+            )
+        
+        # Create hashed password
+        logger.debug("Hashing password...")
+        hashed = get_password_hash(user_data.password)
+        
+        # Create user object
+        user = User(
+            username=user_data.username, 
+            email=user_data.email, 
+            hashed_password=hashed,
+            department=user_data.department,
+            job_title=user_data.job_title
         )
-    
-    # Check if user already exists
-    existing_user = db.query(User).filter(
-        (User.username == user_data.username) | (User.email == user_data.email)
-    ).first()
-    
-    if existing_user:
+        
+        logger.debug(f"Created user object: {user.username}")
+        
+        # Add to session
+        db.add(user)
+        logger.debug("User added to session")
+        
+        # Try to flush to see if there are any errors
+        try:
+            db.flush()
+            logger.debug("Flush successful")
+        except Exception as flush_error:
+            logger.error(f"Flush error: {flush_error}")
+            raise
+        
+        # Commit the transaction
+        logger.debug("Committing transaction...")
+        db.commit()
+        logger.debug("Commit successful")
+        
+        # Refresh to get the ID
+        db.refresh(user)
+        logger.debug(f"User refreshed with ID: {user.id}")
+        
+        # Verify the user was actually saved
+        verify_user = db.query(User).filter(User.id == user.id).first()
+        if verify_user:
+            logger.info(f"✓ User created successfully: {verify_user.username} (ID: {verify_user.id})")
+        else:
+            logger.error("✗ User NOT found after commit!")
+            raise HTTPException(status_code=500, detail="User creation failed")
+        
+        logger.debug("=" * 60)
+        logger.debug("CREATE USER ENDPOINT - END")
+        logger.debug("=" * 60)
+        
+        return user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating user: {type(e).__name__}: {e}")
+        db.rollback()
+        logger.debug("Transaction rolled back")
         raise HTTPException(
-            status_code=400,
-            detail="Username or email already exists"
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
         )
-    
-    hashed = get_password_hash(user_data.password)
-    user = User(
-        username=user_data.username, 
-        email=user_data.email, 
-        hashed_password=hashed,
-        department=user_data.department,
-        job_title=user_data.job_title
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    # Audit logging
-    audit_logger.log_user_creation(
-        db=db,
-        user_id=user.id,
-        username=user.username,
-        email=user.email,
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent")
-    )
-    
-    logger.info(f"Created new user: {user.username}")
-    return user
 
 @app.get("/users/", response_model=list[UserResponse])
 def get_users(
